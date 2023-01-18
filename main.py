@@ -1,12 +1,12 @@
 import pygame as pg
 
 class Planet():
-    def __init__(self, m:float, p:pg.Vector2):
+    def __init__(self, m:float, p:pg.Vector2, v:pg.Vector2):
         self.m:float = m
         self.p:pg.Vector2 = p
         self.a:pg.Vector2 = pg.Vector2(0,0)
-        self.v:pg.Vector2 = pg.Vector2(0,0)
-        self.r:float = 100
+        self.v:pg.Vector2 = v
+        self.r:float = 25
 
     def update(self,dt):
         self.v += self.a * dt
@@ -20,7 +20,7 @@ class Planet():
     def apply_force_from_polar(self, magnitude:float, direction:float) -> None:
         pass
 
-planets = [Planet(1000, pg.Vector2(500,500))]
+planets = [Planet(5000, pg.Vector2(500,500), pg.Vector2(-2.5,0)), Planet(5000, pg.Vector2(250,250), pg.Vector2(2.5,0))]
 
 BLACK = (0,0,0)
 RED = (255,0,0)
@@ -49,8 +49,14 @@ while running:
     screen.fill(BLACK)
 
     for planet in planets:
-        planet.update(dt)
-        pg.draw.circle(screen, RED, planet.p, planet.r)
+        for planet2 in planets:
+            if planet == planet2: continue
+            distance = (planet.p - planet2.p).magnitude_squared()
+            force = planet.m * planet2.m / distance
+            force_vector = (planet2.p - planet.p).normalize() * force
+            planet.apply_force_from_vector(force_vector)
+            planet.update(dt/20)
+            pg.draw.circle(screen, RED, planet.p, planet.r)
 
 
     pg.display.flip()       

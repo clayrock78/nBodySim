@@ -1,5 +1,6 @@
 import pygame as pg
 from random import randint, uniform, choice
+from math import ceil
 
 
 class Planet():
@@ -18,13 +19,19 @@ class Planet():
         self.a = pg.Vector2(0, 0)
         #self.p.x %= 1000
         #self.p.y %= 1000
-        pg.draw.line(trail_layer, self.color, p1, self.p)
+        pg.draw.line(trail_layer, self.color, p1, self.p, )#width=int(ceil(self.v.magnitude()**.5)))
 
     def apply_force_from_vector(self, force: pg.Vector2) -> None:
         self.a += force / self.m
 
     def apply_force_from_polar(self, magnitude: float, direction: float) -> None:
         pass
+
+SCREEN_WIDTH = 1000
+SCREEN_HEIGHT = 1000
+
+WIDTH=2000
+HEIGHT=2000
 
 
 BLACK = (0, 0, 0)
@@ -36,24 +43,34 @@ PURPLE = (255, 0, 255)
 BROWN = (255, 255, 0)
 ALL_COLORS = [RED, BLUE, GREEN, WHITE, PURPLE, BROWN]
 
-planets = [Planet(randint(5000,10000), pg.Vector2(randint(0,1000), randint(0,1000)), pg.Vector2(uniform(-4,4),uniform(-4,4)), choice(ALL_COLORS)) for _ in range(3)]
+def random_planets(num):
+    return [Planet(randint(5000,10000), pg.Vector2(randint(-.5*SCREEN_WIDTH,.5*SCREEN_WIDTH)+WIDTH/2, randint(-.5*SCREEN_HEIGHT,.5*SCREEN_HEIGHT)+HEIGHT/2), pg.Vector2(uniform(-8,8),uniform(-8,8)), choice(ALL_COLORS)) for _ in range(num)]
 
+planets = random_planets(3)
 
 
 pg.init()
-screen = pg.display.set_mode((1000, 1000))
+screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+world_surf = pg.Surface((WIDTH,HEIGHT))
 pg.display.set_caption("<Your game>")
 clock = pg.time.Clock()  # For syncing the FPS
 FPS = 300
 
 camera_mode = "normal"
 track_planet = 0
-trail_layer = pg.Surface((1000,1000))
+trail_layer = pg.Surface((WIDTH,HEIGHT))
 trail_layer.fill(BLACK)
+
+dragging = False
+mouse_prev = pg.Vector2(0,0)
+cam_offset = pg.Vector2(world_surf.get_rect().center)
+
 
 # Game loop
 running = True
 while running:
+    print(cam_offset)
+    print(planets[0].p)
 
     # 1 Process input/events
     # will make the loop run at the same speed all the time
@@ -66,7 +83,8 @@ while running:
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_SPACE:
                 trail_layer.fill(BLACK)
-                planets = [Planet(randint(5000,10000), pg.Vector2(randint(0,1000), randint(0,1000)), pg.Vector2(uniform(-8,8),uniform(-8,8)), choice(ALL_COLORS)) for _ in range(3)]
+                cam_offset = pg.Vector2(0,0)
+                planets = random_planets(3)
             if event.key == pg.K_LEFT:
                 track_planet -= 1 
                 track_planet %= len(planets)
@@ -77,6 +95,16 @@ while running:
                 camera_mode = "average"
             if event.key == pg.K_DOWN:
                 camera_mode = "track"
+
+    if pg.mouse.get_pressed()[0]:
+        dragging = True
+        cam_offset = pg.Vector2(pg.mouse.get_pos()) - mouse_prev
+    elif dragging:
+        dragging = False
+    else:
+        mouse_prev = pg.Vector2(pg.mouse.get_pos()) - cam_offset
+
+
 
     # 3 Draw/render
     if camera_mode == "average":
@@ -89,17 +117,17 @@ while running:
     else:
         p_avg = pg.Vector2(0,0)
     
-    screen.fill(BLACK)
-    screen.blit(trail_layer,(0,0))
+    world_surf.fill(BLACK)
+    world_surf.blit(trail_layer,(0,0))
 
     for planet in planets:
         for planet2 in planets:
             if planet == planet2:
                 continue
             distance = (planet.p - planet2.p).magnitude_squared()
-            if distance < planet.r**2 and False:
+            if distance < planet.r**2:
                 trail_layer.fill(BLACK)
-                planets = [Planet(randint(5000,10000), pg.Vector2(randint(0,1000), randint(0,1000)), pg.Vector2(uniform(-8,8),uniform(-8,8))) for _ in range(4)]
+                planets = random_planets(3)
                 break
             force = 6 * planet.m * planet2.m / distance
             force_vector = (planet2.p - planet.p).normalize() * force
@@ -107,8 +135,10 @@ while running:
     
     for planet in planets:
         planet.update(dt/40)
-        pg.draw.circle(screen, planet.color, planet.p, planet.r)
+        pg.draw.circle(world_surf, planet.color, planet.p, planet.r)
 
+    screen.fill(BLACK)
+    screen.blit(world_surf, cam_offset)
 
     pg.display.flip()
 
